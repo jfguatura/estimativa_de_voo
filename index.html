@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Estimativa de Tempo de Voo</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+  <style>
+    body, html {
+      margin: 0; padding: 0; height: 100%;
+      font-family: Arial, sans-serif;
+    }
+    .container {
+      display: flex;
+      height: 100vh;
+    }
+    .left-panel {
+      width: 35%;
+      padding: 20px;
+      overflow-y: auto;
+      background: #f5f5f5;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    }
+    .right-panel {
+      flex-grow: 1;
+    }
+    #map {
+      height: 100%; width: 100%;
+    }
+    label, select, input, button {
+      display: block;
+      margin: 10px 0;
+      width: 100%;
+    }
+    button {
+      padding: 10px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="left-panel">
+      <h1>Estimativa de Tempo de Voo</h1>
+      <h2>Fonte: Dados cadastrais de aeródromos públicos, Agência Nacional de Aviação Civil - ANAC</h2>
+      <p id="data-atualizacao">Data de atualização: carregando...</p>
+
+      <label for="aeronave">Aeronave:</label>
+      <select id="aeronave">
+        <option value="vc1">VC-1 (Airbus A319)</option>
+        <option value="vc2">VC-2 (Embraer E-190)</option>
+        <option value="kc30">KC-30 (Airbus A330)</option>
+        <option value="custom">Personalizado</option>
+      </select>
+
+      <div id="custom-speed-input" style="display: none;">
+        <label for="velocidade-personalizada">Velocidade de cruzeiro (km/h):</label>
+        <input type="number" id="velocidade-personalizada" min="100" step="10">
+      </div>
+
+
+      <label for="municipio-origem">Município de Origem:</label>
+      <select id="municipio-origem"></select>
+
+      <label for="aeroporto-origem">Aeroporto de Origem:</label>
+      <select id="aeroporto-origem"></select>
+
+      <label for="municipio-destino">Município de Destino:</label>
+      <select id="municipio-destino"></select>
+
+      <label for="aeroporto-destino">Aeroporto de Destino:</label>
+      <select id="aeroporto-destino"></select>
+
+      <button id="calcular">Calcular Trajeto</button>
+      <button id="exportar-pdf">Exportar Mapa em PDF</button>
+    </div>
+
+    <div class="right-panel">
+      <div id="map"></div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

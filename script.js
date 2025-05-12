@@ -179,7 +179,10 @@ document.addEventListener('DOMContentLoaded', function () {
     console.log('Botão clicado');
     calcularTrajeto();
   });
-
+  
+  // para o botão funcionar ao clicar, é necessário que você adicione um event listener a ele
+  document.getElementById("exportar-pdf").addEventListener("click", exportarPDF);
+  
   // Função para calcular o trajeto entre os aeroportos
   function calcularTrajeto() {
     const codOrigem = document.getElementById("aeroporto-origem").value;

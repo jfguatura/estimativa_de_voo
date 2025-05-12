@@ -2,6 +2,7 @@ let mapa;
 let aeroportos = [];
 let marcadores = [];
 let linhaVoo;
+let dadosTrajeto = null;
 
 async function carregarDadosAeroportos() {
   const response = await fetch("AerodromosPublicos.json");
@@ -250,30 +251,64 @@ document.addEventListener('DOMContentLoaded', function () {
       `<strong>Distância:</strong> ${distanciaFormatada} km<br>
        <strong>Tempo estimado:</strong> ${tempoFormatado}`
     ).openPopup();
+
+    // Salva os dados do trajeto para uso posterior (ex: exportar PDF)
+    dadosTrajeto = {
+      aeronave: document.getElementById("aeronave").selectedOptions[0].text,
+      origem,
+      destino,
+      distancia: Math.round(dist),
+      tempoHoras: Math.floor(tempo),
+      tempoMinutos: Math.round((tempo - Math.floor(tempo)) * 60)
+    };
   }
 
   // Função para obter informações do aeroporto por código
  function obterAeroportoPorCodigo(codigo) {
   return aeroportos.find(aeroporto => aeroporto.codigo_oaci === codigo);
 }
-
 });
 
 
-function exportarPDF() {
-  const container = document.getElementById('container');
-  html2canvas(container).then(canvas => {
-    const imgData = canvas.toDataURL('image/png');
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: 'landscape' });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const imgWidth = pageWidth;
-    const imgHeight = canvas.height * imgWidth / canvas.width;
-    const yOffset = (pdf.internal.pageSize.getHeight() - imgHeight) / 2;
+async function exportarPDF() {
+  if (!dadosTrajeto) {
+    alert("Você precisa calcular o trajeto antes de exportar o PDF.");
+    return;
+  }
 
-    pdf.addImage(imgData, 'PNG', 0, yOffset, imgWidth, imgHeight);
-    pdf.save("trajeto_aereo.pdf");
-  });
+  const container = document.querySelector('.container');
+  const canvas = await html2canvas(container, { scale: 2 });
+  const imgData = canvas.toDataURL('image/png');
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+  const { aeronave, origem, destino, distancia, tempoHoras, tempoMinutos } = dadosTrajeto;
+  const tempoFormatado = `${tempoHoras}h ${tempoMinutos}min`;
+  const distanciaFormatada = distancia.toLocaleString('pt-BR');
+
+  let y = 15;
+  pdf.setFontSize(14);
+  pdf.text(`Aeronave: ${aeronave}`, 10, y);
+  y += 10;
+  pdf.text(`Município de origem: ${origem.municipio} (${origem.uf})`, 10, y);
+  y += 8;
+  pdf.text(`Aeroporto de origem: ${origem.nome} (${origem.codigo_oaci})`, 10, y);
+  y += 10;
+  pdf.text(`Distância: ${distanciaFormatada} km`, 10, y);
+  y += 8;
+  pdf.text(`Tempo de voo: ${tempoFormatado}`, 10, y);
+  y += 10;
+  pdf.text(`Município de destino: ${destino.municipio} (${destino.uf})`, 10, y);
+  y += 8;
+  pdf.text(`Aeroporto de destino: ${destino.nome} (${destino.codigo_oaci})`, 10, y);
+
+  const imgWidth = pdf.internal.pageSize.getWidth() - 20;
+  const imgHeight = canvas.height * imgWidth / canvas.width;
+  const yImg = y + 15;
+
+  pdf.addImage(imgData, 'PNG', 10, yImg, imgWidth, imgHeight);
+  pdf.save("trajeto_aereo.pdf");
 }
 
 carregarDadosAeroportos();

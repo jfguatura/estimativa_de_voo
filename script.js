@@ -248,12 +248,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const tempoFormatado = `${horas}h ${minutos}min`;
     const distanciaFormatada = Math.round(dist).toLocaleString('pt-BR');
 
-    linhaVoo.bindPopup(
-      `<strong>${dadosTrajeto.aeronave}</strong><br>
-       <strong>Distância:</strong> ${distanciaFormatada} km<br>
-       <strong>Tempo estimado:</strong> ${tempoFormatado}`
-    ).openPopup();
-
     // Salva os dados do trajeto para uso posterior (ex: exportar PDF)
     dadosTrajeto = {
       aeronave: document.getElementById("aeronave").selectedOptions[0].text,
@@ -263,6 +257,13 @@ document.addEventListener('DOMContentLoaded', function () {
       tempoHoras: Math.floor(tempo),
       tempoMinutos: Math.round((tempo - Math.floor(tempo)) * 60)
     };
+
+    // Usa dadosTrajeto no popup da linha de voo
+    linhaVoo.bindPopup(
+      `<strong>${dadosTrajeto.aeronave}</strong><br>
+       <strong>Distância:</strong> ${distanciaFormatada} km<br>
+       <strong>Tempo estimado:</strong> ${tempoFormatado}`
+    ).openPopup();
   }
 
   // Função para obter informações do aeroporto por código

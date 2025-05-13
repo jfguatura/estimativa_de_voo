@@ -278,52 +278,51 @@ async function exportarPDF() {
     return;
   }
 
-  const mapElement = document.getElementById("map");
+  // Preenche o painel lateral com dados formatados
+  const { aeronave, origem, destino, distancia, tempoHoras, tempoMinutos } = dadosTrajeto;
 
-  const canvas = await html2canvas(mapElement, {
+  const painel = document.getElementById("export-left-panel");
+  painel.innerHTML = `
+    <h2>Plano de Voo</h2>
+    <p><strong>Aeronave:</strong> ${aeronave}</p>
+    <p><strong>Origem:</strong><br>${origem.nome} (${origem.codigo_oaci})<br>${origem.municipio}/${origem.uf}</p>
+    <p><strong>Destino:</strong><br>${destino.nome} (${destino.codigo_oaci})<br>${destino.municipio}/${destino.uf}</p>
+    <p><strong>Distância:</strong> ${distancia.toLocaleString("pt-BR")} km</p>
+    <p><strong>Tempo estimado:</strong> ${tempoHoras}h${tempoMinutos}min</p>
+  `;
+
+  // Clona o conteúdo do mapa
+  const originalMap = document.getElementById("map");
+  const exportMap = document.getElementById("export-map");
+  exportMap.innerHTML = ""; // limpa o mapa anterior, se houver
+  exportMap.appendChild(originalMap.cloneNode(true));
+
+  // Exibe temporariamente o container
+  const exportContainer = document.getElementById("export-container");
+  exportContainer.style.display = "flex";
+
+  // Captura imagem do container completo
+  const canvas = await html2canvas(exportContainer, {
     useCORS: true,
-    logging: false,
-    scale: 1 // reduz a resolução da imagem gerada
+    scale: 2
   });
-  
-  // Converte a imagem para JPEG com compressão (0.7 = 70% de qualidade)
-  const imgData = canvas.toDataURL("image/png", 0.7);
 
+  const imgData = canvas.toDataURL("image/png");
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
 
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
+
   const imgWidth = pageWidth;
   const imgHeight = canvas.height * imgWidth / canvas.width;
 
-  // Adiciona a imagem do mapa
   pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+  pdf.save(`plano_voo_${origem.codigo_oaci}_${destino.codigo_oaci}.pdf`);
 
-  // Adiciona informações textuais no canto superior esquerdo
-  pdf.setFontSize(12);
-  pdf.setTextColor(0, 0, 0);
-
-  const { aeronave, origem, destino, distancia, tempoHoras, tempoMinutos } = dadosTrajeto;
-  const tempoFormatado = `${tempoHoras}h${tempoMinutos}min`;
-  const distanciaFormatada = distancia.toLocaleString('pt-BR');
-
-  const linhas = [
-    `Aeronave: ${aeronave}`,
-    `Origem: ${origem.nome} (${origem.codigo_oaci}) - ${origem.municipio}/${origem.uf}`,
-    `Destino: ${destino.nome} (${destino.codigo_oaci}) - ${destino.municipio}/${destino.uf}`,
-    `Distância: ${distanciaFormatada} km`,
-    `Tempo estimado: ${tempoFormatado}`
-  ];
-
-  let y = 10;
-  linhas.forEach(linha => {
-    pdf.text(linha, 10, y);
-    y += 7;
-  });
-
-  const nomeArquivo = `plano_voo_${origem.codigo_oaci}_${destino.codigo_oaci}.pdf`;
-  pdf.save(nomeArquivo);
+  // Oculta novamente
+  exportContainer.style.display = "none";
 }
+
 
 carregarDadosAeroportos();

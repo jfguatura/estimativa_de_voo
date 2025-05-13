@@ -78,8 +78,8 @@ body {
 
   #export-container {
     display: flex;
-    width: 1000px;
-    height: 600px;
+    width: 794px;   /* 210mm em 96dpi */
+    height: 1123px; /* 297mm em 96dpi */
     font-family: Arial, sans-serif;
   }
 

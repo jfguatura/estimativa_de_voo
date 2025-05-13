@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Verifica se a velocidade é válida (velocidade agora é um identificador de texto para aeronave)
-    if (tipoVel === "custom" && (isNaN(velocidade) || velocidade <= 0) {
+    if (tipoVel === "custom" && (isNaN(velocidade) || velocidade <= 0)) {
       alert("Por favor, informe uma velocidade válida.");
       return;
     }
@@ -321,7 +321,7 @@ async function exportarPDF() {
     y += 7;
   });
 
-  const nomeArquivo - `plano_voo_${origem.codigo_oaci}_${destino.codigo_oaci}.pdf`;
+  const nomeArquivo = `plano_voo_${origem.codigo_oaci}_${destino.codigo_oaci}.pdf`;
   pdf.save(nomeArquivo);
 }
 

@@ -272,46 +272,55 @@ document.addEventListener('DOMContentLoaded', function () {
 }
 });
 
-
 async function exportarPDF() {
   if (!dadosTrajeto) {
     alert("Você precisa calcular o trajeto antes de exportar o PDF.");
     return;
   }
 
-  const container = document.querySelector('.container');
-  const canvas = await html2canvas(container, { scale: 2 });
-  const imgData = canvas.toDataURL('image/png');
+  const mapElement = document.getElementById("map");
+
+  const canvas = await html2canvas(mapElement, {
+    useCORS: true,
+    logging: false,
+    scale: 2
+  });
+  const imgData = canvas.toDataURL("image/png");
 
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const imgWidth = pageWidth;
+  const imgHeight = canvas.height * imgWidth / canvas.width;
+
+  // Adiciona a imagem do mapa
+  pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+
+  // Adiciona informações textuais no canto superior esquerdo
+  pdf.setFontSize(12);
+  pdf.setTextColor(0, 0, 0);
 
   const { aeronave, origem, destino, distancia, tempoHoras, tempoMinutos } = dadosTrajeto;
   const tempoFormatado = `${tempoHoras}h ${tempoMinutos}min`;
   const distanciaFormatada = distancia.toLocaleString('pt-BR');
 
-  let y = 15;
-  pdf.setFontSize(14);
-  pdf.text(`Aeronave: ${aeronave}`, 10, y);
-  y += 10;
-  pdf.text(`Município de origem: ${origem.municipio} (${origem.uf})`, 10, y);
-  y += 8;
-  pdf.text(`Aeroporto de origem: ${origem.nome} (${origem.codigo_oaci})`, 10, y);
-  y += 10;
-  pdf.text(`Distância: ${distanciaFormatada} km`, 10, y);
-  y += 8;
-  pdf.text(`Tempo de voo: ${tempoFormatado}`, 10, y);
-  y += 10;
-  pdf.text(`Município de destino: ${destino.municipio} (${destino.uf})`, 10, y);
-  y += 8;
-  pdf.text(`Aeroporto de destino: ${destino.nome} (${destino.codigo_oaci})`, 10, y);
+  const linhas = [
+    `Aeronave: ${aeronave}`,
+    `Origem: ${origem.nome} (${origem.codigo_oaci}) - ${origem.municipio}/${origem.uf}`,
+    `Destino: ${destino.nome} (${destino.codigo_oaci}) - ${destino.municipio}/${destino.uf}`,
+    `Distância: ${distanciaFormatada} km`,
+    `Tempo estimado: ${tempoFormatado}`
+  ];
 
-  const imgWidth = pdf.internal.pageSize.getWidth() - 20;
-  const imgHeight = canvas.height * imgWidth / canvas.width;
-  const yImg = y + 15;
+  let y = 10;
+  linhas.forEach(linha => {
+    pdf.text(linha, 10, y);
+    y += 7;
+  });
 
-  pdf.addImage(imgData, 'PNG', 10, yImg, imgWidth, imgHeight);
-  pdf.save("trajeto_aereo.pdf");
+  pdf.save("plano_de_voo.pdf");
 }
 
 carregarDadosAeroportos();

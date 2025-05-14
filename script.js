@@ -4,12 +4,20 @@ let marcadores = [];
 let linhaVoo;
 let dadosTrajeto = null;
 
+/ Atualize a função carregarDadosAeroportos para usar o feedback visual
 async function carregarDadosAeroportos() {
-  const response = await fetch("AerodromosPublicos.json");
-  const dados = await response.json();
-  const dataModificacao = response.headers.get("Last-Modified");
+  try {
+    showLoading('Carregando dados de aeroportos...');
+    const response = await fetch("AerodromosPublicos.json");
+    
+    if (!response.ok) {
+      throw new Error('Falha ao carregar dados dos aeroportos');
+    }
+    
+    const dados = await response.json();
+    const dataModificacao = response.headers.get("Last-Modified");
 
-  aeroportos = dados.map(a => ({
+    aeroportos = dados.map(a => ({
     codigo_oaci: a["CódigoOACI"],
     ciad: a["CIAD"],
     nome: a["Nome"],
@@ -43,6 +51,13 @@ async function carregarDadosAeroportos() {
   mostrarDataAtualizacao(dataModificacao);
   inicializarMapa();
   preencherMunicipios();
+  
+  showMessage('Dados carregados com sucesso!', 'success');
+  } catch (error) {
+    showError(error.message);
+  } finally {
+    hideLoading();
+  }
 }
 
 function mostrarDataAtualizacao(dataModificacao) {
@@ -79,6 +94,25 @@ function exibirTodosOsAeroportos() {
     marcadores.push(marcador);
   });
 }
+
+// Funções de UI melhoradas
+function showLoading(message = 'Carregando...') {
+  const spinner = document.getElementById('loading-spinner');
+  const messageEl = document.getElementById('loading-message');
+  messageEl.textContent = message;
+  spinner.style.display = 'flex';
+}
+
+function hideLoading() {
+  const spinner = document.getElementById('loading-spinner');
+  spinner.style.display = 'none';
+}
+
+function showError(message) {
+  showMessage(message, 'error');
+  console.error(message);
+}
+
 
 function gerarPopup(aero) {
   let conteudo = `<strong>${aero.nome}</strong><br>`;
@@ -181,8 +215,10 @@ document.addEventListener('DOMContentLoaded', function () {
   // para o botão funcionar ao clicar, é necessário que você adicione um event listener a ele
   document.getElementById("exportar-pdf").addEventListener("click", exportarPDF);
   
-  // Função para calcular o trajeto entre os aeroportos
-  function calcularTrajeto() {
+function calcularTrajeto() {
+  try {
+    showLoading('Calculando trajeto...');
+    
     const codOrigem = document.getElementById("aeroporto-origem").value;
     const codDestino = document.getElementById("aeroporto-destino").value;
     const tipoVel = document.getElementById("aeronave").value;
@@ -194,14 +230,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Verifica se os aeroportos de origem e destino são válidos
     if (!origem || !destino) {
-      alert("Por favor, selecione aeroportos de origem e destino válidos.");
-      return;
+      throw new Error('Por favor, selecione aeroportos de origem e destino válidos.');
     }
 
     // Verifica se a velocidade é válida (velocidade agora é um identificador de texto para aeronave)
     if (tipoVel === "custom" && (isNaN(velocidade) || velocidade <= 0)) {
-      alert("Por favor, informe uma velocidade válida.");
-      return;
+      throw new Error("Por favor, informe uma velocidade válida.");
     }
 
     // Calcula a distância entre os aeroportos
@@ -242,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Ajusta o mapa para mostrar a linha de voo
     mapa.fitBounds(linhaVoo.getBounds());
 
-    // Exibe um popup com a distância e tempo estimado de voo, com separador de milhar (e sem casas decimais) e o tempo estimado em horas e minutos
+    // Formata os resultados
     const horas = Math.floor(tempo);
     const minutos = Math.round((tempo - horas) * 60);
     const tempoFormatado = `${horas}h ${minutos}min`;
@@ -264,8 +298,28 @@ document.addEventListener('DOMContentLoaded', function () {
        <strong>Distância:</strong> ${distanciaFormatada} km<br>
        <strong>Tempo estimado:</strong> ${tempoFormatado}`
     ).openPopup();
-  }
 
+    showMessage('Trajeto calculado com sucesso!', 'success');
+  } catch (error) {
+    showError(error.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+  // Adicione animação ao exibir resultados
+  function exibirResultadoTrajeto(dados) {
+    const popupContent = `
+      <div class="fade-in">
+        <strong>${dados.aeronave}</strong><br>
+        <strong>Distância:</strong> ${dados.distancia.toLocaleString('pt-BR')} km<br>
+        <strong>Tempo estimado:</strong> ${dados.tempoHoras}h ${dados.tempoMinutos}min
+      </div>
+    `;
+    
+    linhaVoo.bindPopup(popupContent).openPopup();
+  }
+  
   // Função para obter informações do aeroporto por código
  function obterAeroportoPorCodigo(codigo) {
   return aeroportos.find(aeroporto => aeroporto.codigo_oaci === codigo);

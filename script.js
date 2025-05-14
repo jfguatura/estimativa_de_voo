@@ -320,7 +320,7 @@ async function exportarPDF() {
   // const canvas = await html2canvas(exportContainer, {
   //   useCORS: true,
   //   scale: 2
-  });
+  // });
 
   const imgData = canvas.toDataURL("image/png");
   const { jsPDF } = window.jspdf;

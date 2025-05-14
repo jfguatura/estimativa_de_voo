@@ -291,20 +291,35 @@ async function exportarPDF() {
     <p><strong>Tempo estimado:</strong> ${tempoHoras}h${tempoMinutos}min</p>
   `;
 
-  // Clona o conteúdo do mapa
-  const originalMap = document.getElementById("map");
-  const exportMap = document.getElementById("export-map");
-  exportMap.innerHTML = ""; // limpa o mapa anterior, se houver
-  exportMap.appendChild(originalMap.cloneNode(true));
-
-  // Exibe temporariamente o container
+  // Exibe temporariamente o container com o mapa original visível
   const exportContainer = document.getElementById("export-container");
   exportContainer.style.display = "flex";
 
-  // Captura imagem do container completo
+  // Captura imagem do container visível (painel + mapa real)
   const canvas = await html2canvas(exportContainer, {
     useCORS: true,
-    scale: 2
+    scale: 1,
+    logging: false
+  });
+  
+  // Aguarda renderização dos tiles do mapa
+  await new Promise(resolve => setTimeout(resolve, 500));  // 0.5s para garantir renderização do mapa
+
+  
+  // Clona o conteúdo do mapa
+  // const originalMap = document.getElementById("map");
+  // const exportMap = document.getElementById("export-map");
+  // exportMap.innerHTML = ""; // limpa o mapa anterior, se houver
+  // exportMap.appendChild(originalMap.cloneNode(true));
+
+  // Exibe temporariamente o container
+  // const exportContainer = document.getElementById("export-container");
+  // exportContainer.style.display = "flex";
+
+  // Captura imagem do container completo
+  // const canvas = await html2canvas(exportContainer, {
+  //   useCORS: true,
+  //   scale: 2
   });
 
   const imgData = canvas.toDataURL("image/png");

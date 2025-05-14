@@ -269,28 +269,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Função para obter informações do aeroporto por código
  function obterAeroportoPorCodigo(codigo) {
   return aeroportos.find(aeroporto => aeroporto.codigo_oaci === codigo);
-}
-
-  new TomSelect("#municipio-origem", {
-    create: false,
-    sortField: {
-      field: "text",
-      direction: "asc"
-    },
-    placeholder: "Digite para buscar...",
-  });
-  
-  new TomSelect("#municipio-destino", {
-    create: false,
-    sortField: {
-      field: "text",
-      direction: "asc"
-    },
-    placeholder: "Digite para buscar...",
-  });
-  
-  // ⚙️ Chamada para carregar os dados dos aeroportos ao iniciar
-  carregarDadosAeroportos();
+  }
 });
 
 async function exportarPDF() {

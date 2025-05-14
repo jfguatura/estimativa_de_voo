@@ -2,10 +2,13 @@ let mapa;
 let aeroportos = [];
 let marcadores = [];
 let linhaVoo;
+let dadosTrajeto = null;
 
 async function carregarDadosAeroportos() {
   const response = await fetch("AerodromosPublicos.json");
   const dados = await response.json();
+  const dataModificacao = response.headers.get("Last-Modified");
+
   aeroportos = dados.map(a => ({
     codigo_oaci: a["CódigoOACI"],
     ciad: a["CIAD"],
@@ -37,26 +40,22 @@ async function carregarDadosAeroportos() {
     link_portaria: a["LinkPortaria"]
   })).filter(a => !isNaN(a.latitude) && !isNaN(a.longitude));
 
-  async function mostrarDataAtualizacao() {
-  const response = await fetch("AerodromosPublicos.json", { method: 'HEAD' });
-  const dataModificacao = response.headers.get("Last-Modified");
+  mostrarDataAtualizacao(dataModificacao);
+  inicializarMapa();
+  preencherMunicipios();
+}
 
+function mostrarDataAtualizacao(dataModificacao) {
+  const el = document.getElementById("data-atualizacao");
   if (dataModificacao) {
     const data = new Date(dataModificacao);
     const dataFormatada = data.toLocaleDateString('pt-BR', {
       day: '2-digit', month: '2-digit', year: 'numeric'
     });
-    document.getElementById("data-atualizacao").textContent =
-      `Data de atualização: ${dataFormatada}`;
+    el.textContent = `Data de atualização: ${dataFormatada}`;
   } else {
-    document.getElementById("data-atualizacao").textContent =
-      `Data de atualização: não disponível`;
+    el.textContent = `Data de atualização: não disponível`;
   }
-}
-  
-  mostrarDataAtualizacao();
-  inicializarMapa();
-  preencherMunicipios();
 }
 
 function inicializarMapa() {
@@ -178,7 +177,10 @@ document.addEventListener('DOMContentLoaded', function () {
     console.log('Botão clicado');
     calcularTrajeto();
   });
-
+  
+  // para o botão funcionar ao clicar, é necessário que você adicione um event listener a ele
+  document.getElementById("exportar-pdf").addEventListener("click", exportarPDF);
+  
   // Função para calcular o trajeto entre os aeroportos
   function calcularTrajeto() {
     const codOrigem = document.getElementById("aeroporto-origem").value;
@@ -197,10 +199,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Verifica se a velocidade é válida (velocidade agora é um identificador de texto para aeronave)
-    // if (isNaN(velocidade) || velocidade <= 0) {
-    //   alert("Por favor, informe uma velocidade válida.");
-    //   return;
-    // }
+    if (tipoVel === "custom" && (isNaN(velocidade) || velocidade <= 0)) {
+      alert("Por favor, informe uma velocidade válida.");
+      return;
+    }
 
     // Calcula a distância entre os aeroportos
     const dist = calcularDistancia(origem.latitude, origem.longitude, destino.latitude, destino.longitude);
@@ -246,8 +248,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const tempoFormatado = `${horas}h ${minutos}min`;
     const distanciaFormatada = Math.round(dist).toLocaleString('pt-BR');
 
+    // Salva os dados do trajeto para uso posterior (ex: exportar PDF)
+    dadosTrajeto = {
+      aeronave: document.getElementById("aeronave").selectedOptions[0].text,
+      origem,
+      destino,
+      distancia: Math.round(dist),
+      tempoHoras: Math.floor(tempo),
+      tempoMinutos: Math.round((tempo - Math.floor(tempo)) * 60)
+    };
+
+    // Usa dadosTrajeto no popup da linha de voo
     linhaVoo.bindPopup(
-      `<strong>Distância:</strong> ${distanciaFormatada} km<br>
+      `<strong>${dadosTrajeto.aeronave}</strong><br>
+       <strong>Distância:</strong> ${distanciaFormatada} km<br>
        <strong>Tempo estimado:</strong> ${tempoFormatado}`
     ).openPopup();
   }
@@ -255,25 +269,74 @@ document.addEventListener('DOMContentLoaded', function () {
   // Função para obter informações do aeroporto por código
  function obterAeroportoPorCodigo(codigo) {
   return aeroportos.find(aeroporto => aeroporto.codigo_oaci === codigo);
-}
-
+  }
 });
 
+async function exportarPDF() {
+  if (!dadosTrajeto) {
+    alert("Você precisa calcular o trajeto antes de exportar o PDF.");
+    return;
+  }
 
-function exportarPDF() {
-  const container = document.getElementById('container');
-  html2canvas(container).then(canvas => {
-    const imgData = canvas.toDataURL('image/png');
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: 'landscape' });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const imgWidth = pageWidth;
-    const imgHeight = canvas.height * imgWidth / canvas.width;
-    const yOffset = (pdf.internal.pageSize.getHeight() - imgHeight) / 2;
+  // Preenche o painel lateral com dados formatados
+  const { aeronave, origem, destino, distancia, tempoHoras, tempoMinutos } = dadosTrajeto;
 
-    pdf.addImage(imgData, 'PNG', 0, yOffset, imgWidth, imgHeight);
-    pdf.save("trajeto_aereo.pdf");
+  const painel = document.getElementById("export-left-panel");
+  painel.innerHTML = `
+    <h2>Plano de Voo</h2>
+    <p><strong>Aeronave:</strong> ${aeronave}</p>
+    <p><strong>Origem:</strong><br>${origem.nome} (${origem.codigo_oaci})<br>${origem.municipio}/${origem.uf}</p>
+    <p><strong>Destino:</strong><br>${destino.nome} (${destino.codigo_oaci})<br>${destino.municipio}/${destino.uf}</p>
+    <p><strong>Distância:</strong> ${distancia.toLocaleString("pt-BR")} km</p>
+    <p><strong>Tempo estimado:</strong> ${tempoHoras}h${tempoMinutos}min</p>
+  `;
+
+  // Exibe temporariamente o container com o mapa original visível
+  const exportContainer = document.getElementById("export-container");
+  exportContainer.style.display = "flex";
+
+  // Captura imagem do container visível (painel + mapa real)
+  const canvas = await html2canvas(exportContainer, {
+    useCORS: true,
+    scale: 1,
+    logging: false
   });
+  
+  // Aguarda renderização dos tiles do mapa
+  await new Promise(resolve => setTimeout(resolve, 500));  // 0.5s para garantir renderização do mapa
+
+  
+  // Clona o conteúdo do mapa
+  // const originalMap = document.getElementById("map");
+  // const exportMap = document.getElementById("export-map");
+  // exportMap.innerHTML = ""; // limpa o mapa anterior, se houver
+  // exportMap.appendChild(originalMap.cloneNode(true));
+
+  // Exibe temporariamente o container
+  // const exportContainer = document.getElementById("export-container");
+  // exportContainer.style.display = "flex";
+
+  // Captura imagem do container completo
+  // const canvas = await html2canvas(exportContainer, {
+  //   useCORS: true,
+  //   scale: 2
+  // });
+
+  const imgData = canvas.toDataURL("image/png");
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+
+  const imgWidth = pageWidth;
+  const imgHeight = canvas.height * imgWidth / canvas.width;
+
+  pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+  pdf.save(`plano_voo_${origem.codigo_oaci}_${destino.codigo_oaci}.pdf`);
+
+  // Oculta novamente
+  exportContainer.style.display = "none";
 }
 
 carregarDadosAeroportos();

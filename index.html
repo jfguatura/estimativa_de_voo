@@ -7,102 +7,319 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body, html {
-      margin: 0; padding: 0; height: 100%;
-      font-family: Arial, sans-serif;
+    :root {
+      --primary-color: #007bff;
+      --secondary-color: #6c757d;
+      --background-light: #f8f9fa;
+      --text-dark: #212529;
+      --text-light: #f8f9fa;
+      --success-color: #28a745;
+      --error-color: #dc3545;
+      --transition-speed: 0.3s;
     }
+
+    /* Tema escuro */
+    [data-theme="dark"] {
+      --primary-color: #0d6efd;
+      --secondary-color: #5c636a;
+      --background-light: #212529;
+      --text-dark: #f8f9fa;
+      --text-light: #212529;
+    }
+
+    body, html {
+      margin: 0; 
+      padding: 0; 
+      height: 100%;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--background-light);
+      color: var(--text-dark);
+      transition: background-color var(--transition-speed);
+    }
+
     .container {
       display: flex;
       height: 100vh;
+      flex-direction: column;
     }
+
+    @media (min-width: 768px) {
+      .container {
+        flex-direction: row;
+      }
+    }
+
     .left-panel {
-      width: 35%;
+      width: 100%;
       padding: 20px;
       overflow-y: auto;
-      background: #f5f5f5;
+      background: var(--background-light);
       box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+      transition: all var(--transition-speed);
     }
+
+    @media (min-width: 768px) {
+      .left-panel {
+        width: 35%;
+      }
+    }
+
     .right-panel {
       flex-grow: 1;
+      height: 50vh;
     }
-    #map {
-      height: 100%; width: 100%;
+
+    @media (min-width: 768px) {
+      .right-panel {
+        height: 100%;
+      }
     }
-    label, select, input, button {
-      display: block;
-      margin: 10px 0;
+
+    /* Grupo de campos do formulário */
+    .form-group {
+      margin-bottom: 1.5rem;
+      border: 1px solid #dee2e6;
+      border-radius: 0.25rem;
+      padding: 1rem;
+      transition: all var(--transition-speed);
+    }
+
+    .form-group:hover {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.1);
+    }
+
+    .form-group label {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .form-group label i {
+      margin-right: 0.5rem;
+      color: var(--primary-color);
+    }
+
+    select, input {
       width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ced4da;
+      border-radius: 0.25rem;
+      transition: all var(--transition-speed);
+      background-color: var(--background-light);
+      color: var(--text-dark);
     }
-    button {
-      padding: 10px;
-      background-color: #007bff;
-      color: white;
-      border: none;
+
+    select:focus, input:focus {
+      border-color: var(--primary-color);
+      outline: 0;
+      box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
+    select option {
+      padding: 0.5rem;
+    }
+
+    /* Botões */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.25rem;
       cursor: pointer;
+      transition: all var(--transition-speed);
+      font-weight: 600;
+      text-align: center;
+      white-space: nowrap;
+      border: 1px solid transparent;
     }
-    button:hover {
-      background-color: #0056b3;
+
+    .btn-primary {
+      background-color: var(--primary-color);
+      color: white;
     }
+
+    .btn-primary:hover {
+      background-color: #0069d9;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background-color: var(--secondary-color);
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background-color: #5a6268;
+      transform: translateY(-1px);
+    }
+
+    .btn i {
+      margin-right: 0.5rem;
+    }
+
+    /* Spinner */
     #loading-spinner {
       display: none;
       position: fixed;
-      top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      background: rgba(0, 0, 0, 0.5);
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.7);
       z-index: 9999;
       align-items: center;
       justify-content: center;
+      flex-direction: column;
+      color: white;
     }
+
     #loading-spinner > div {
       border: 8px solid #f3f3f3;
-      border-top: 8px solid #3498db;
+      border-top: 8px solid var(--primary-color);
       border-radius: 50%;
       width: 60px;
       height: 60px;
       animation: spin 1s linear infinite;
+      margin-bottom: 1rem;
     }
+
+    #loading-message {
+      margin-top: 1rem;
+      font-size: 1.2rem;
+    }
+
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
-    }   
+    }
+
+    /* Mensagens */
+    .alert {
+      padding: 1rem;
+      border-radius: 0.25rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    .alert-success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .alert-error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    /* Toggle de tema */
+    .theme-toggle {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      background: var(--primary-color);
+      color: white;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+      transition: all var(--transition-speed);
+    }
+
+    .theme-toggle:hover {
+      transform: scale(1.1);
+    }
+
+    /* Animações */
+    .fade-in {
+      animation: fadeIn var(--transition-speed);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .slide-up {
+      animation: slideUp 0.5s;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="left-panel">
-      <h1>Estimativa de Tempo de Voo</h1>
-      <h2>Fonte: Dados cadastrais de aeródromos públicos, Agência Nacional de Aviação Civil - ANAC</h2>
-      <p id="data-atualizacao">Data de atualização: carregando...</p>
+      <h1 class="slide-up"><i class="fas fa-plane"></i> Estimativa de Tempo de Voo</h1>
+      <h2 class="slide-up" style="animation-delay: 0.1s;"><i class="fas fa-database"></i> Fonte: Dados cadastrais de aeródromos públicos, ANAC</h2>
+      <p id="data-atualizacao" class="slide-up" style="animation-delay: 0.2s;"><i class="fas fa-calendar-alt"></i> Data de atualização: carregando...</p>
 
-      <label for="aeronave">Aeronave:</label>
-      <select id="aeronave">
-        <option value="vc1">VC-1 (Airbus A319)</option>
-        <option value="vc2">VC-2 (Embraer E-190)</option>
-        <option value="kc30">KC-30 (Airbus A330)</option>
-        <option value="custom">Personalizado</option>
-      </select>
+      <div id="alert-message" class="alert" style="display: none;"></div>
 
-      <div id="custom-speed-input" style="display: none;">
-        <label for="velocidade-personalizada">Velocidade de cruzeiro (km/h):</label>
-        <input type="number" id="velocidade-personalizada" min="100" step="10">
+      <div class="form-group slide-up" style="animation-delay: 0.3s;">
+        <label for="aeronave"><i class="fas fa-fighter-jet"></i> Aeronave:</label>
+        <select id="aeronave">
+          <option value="" disabled selected>Selecione uma aeronave...</option>
+          <option value="vc1">VC-1 (Airbus A319)</option>
+          <option value="vc2">VC-2 (Embraer E-190)</option>
+          <option value="kc30">KC-30 (Airbus A330)</option>
+          <option value="custom">Personalizado</option>
+        </select>
       </div>
 
+      <div id="custom-speed-input" class="form-group" style="display: none;">
+        <label for="velocidade-personalizada"><i class="fas fa-tachometer-alt"></i> Velocidade de cruzeiro (km/h):</label>
+        <input type="number" id="velocidade-personalizada" min="100" step="10" placeholder="Ex: 800">
+      </div>
 
-      <label for="municipio-origem">Município de Origem:</label>
-      <select id="municipio-origem"></select>
+      <div class="form-group slide-up" style="animation-delay: 0.4s;">
+        <label for="municipio-origem"><i class="fas fa-map-marker-alt"></i> Município de Origem:</label>
+        <select id="municipio-origem">
+          <option value="" disabled selected>Selecione um município...</option>
+        </select>
+      </div>
 
-      <label for="aeroporto-origem">Aeroporto de Origem:</label>
-      <select id="aeroporto-origem"></select>
+      <div class="form-group slide-up" style="animation-delay: 0.5s;">
+        <label for="aeroporto-origem"><i class="fas fa-plane-departure"></i> Aeroporto de Origem:</label>
+        <select id="aeroporto-origem">
+          <option value="" disabled selected>Selecione um aeroporto...</option>
+        </select>
+      </div>
 
-      <label for="municipio-destino">Município de Destino:</label>
-      <select id="municipio-destino"></select>
+      <div class="form-group slide-up" style="animation-delay: 0.6s;">
+        <label for="municipio-destino"><i class="fas fa-map-marker-alt"></i> Município de Destino:</label>
+        <select id="municipio-destino">
+          <option value="" disabled selected>Selecione um município...</option>
+        </select>
+      </div>
 
-      <label for="aeroporto-destino">Aeroporto de Destino:</label>
-      <select id="aeroporto-destino"></select>
+      <div class="form-group slide-up" style="animation-delay: 0.7s;">
+        <label for="aeroporto-destino"><i class="fas fa-plane-arrival"></i> Aeroporto de Destino:</label>
+        <select id="aeroporto-destino">
+          <option value="" disabled selected>Selecione um aeroporto...</option>
+        </select>
+      </div>
 
-      <button id="calcular">Calcular Trajeto</button>
-      <button id="exportar-pdf">Exportar Mapa em PDF (em desenvolvimento)</button>
+      <button id="calcular" class="btn btn-primary slide-up" style="animation-delay: 0.8s;">
+        <i class="fas fa-calculator"></i> Calcular Trajeto
+      </button>
+      <button id="exportar-pdf" class="btn btn-secondary slide-up" style="animation-delay: 0.9s;">
+        <i class="fas fa-file-pdf"></i> Exportar Mapa em PDF
+      </button>
     </div>
 
     <div class="right-panel">
@@ -113,17 +330,43 @@
   <!-- Spinner -->
   <div id="loading-spinner">
     <div></div>
+    <div id="loading-message">Carregando dados...</div>
   </div>
 
-  <div id="export-container" style="display:none;">
-    <div id="export-left-panel" class="export-panel">
-      <!-- conteúdo injetado via JS -->
-    </div>
-    <div id="export-map">
-      <!-- canvas será clonado aqui -->
-    </div>
+  <!-- Botão de alternar tema -->
+  <div class="theme-toggle" id="theme-toggle">
+    <i class="fas fa-moon"></i>
   </div>
 
+  <!-- Scripts -->
+  <script>
+    // Tema dark/light
+    document.getElementById('theme-toggle').addEventListener('click', function() {
+      const body = document.body;
+      const currentTheme = body.getAttribute('data-theme');
+      const icon = this.querySelector('i');
+      
+      if (currentTheme === 'dark') {
+        body.removeAttribute('data-theme');
+        icon.classList.replace('fa-sun', 'fa-moon');
+      } else {
+        body.setAttribute('data-theme', 'dark');
+        icon.classList.replace('fa-moon', 'fa-sun');
+      }
+    });
+
+    // Função para mostrar mensagens
+    function showMessage(message, type = 'success') {
+      const alert = document.getElementById('alert-message');
+      alert.textContent = message;
+      alert.className = `alert alert-${type} fade-in`;
+      alert.style.display = 'block';
+      
+      setTimeout(() => {
+        alert.style.display = 'none';
+      }, 5000);
+    }
+  </script>
   <!-- Scripts -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>

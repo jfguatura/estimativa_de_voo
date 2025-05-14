@@ -270,6 +270,27 @@ document.addEventListener('DOMContentLoaded', function () {
  function obterAeroportoPorCodigo(codigo) {
   return aeroportos.find(aeroporto => aeroporto.codigo_oaci === codigo);
 }
+
+  new TomSelect("#municipio-origem", {
+    create: false,
+    sortField: {
+      field: "text",
+      direction: "asc"
+    },
+    placeholder: "Digite para buscar...",
+  });
+  
+  new TomSelect("#municipio-destino", {
+    create: false,
+    sortField: {
+      field: "text",
+      direction: "asc"
+    },
+    placeholder: "Digite para buscar...",
+  });
+  
+  // ⚙️ Chamada para carregar os dados dos aeroportos ao iniciar
+  carregarDadosAeroportos();
 });
 
 async function exportarPDF() {
@@ -338,12 +359,5 @@ async function exportarPDF() {
   // Oculta novamente
   exportContainer.style.display = "none";
 }
-
-document.addEventListener('DOMContentLoaded', function () {
-  new TomSelect('#municipio-origem');
-  new TomSelect('#aeroporto-origem');
-  new TomSelect('#municipio-destino');
-  new TomSelect('#aeroporto-destino');
-});
 
 carregarDadosAeroportos();

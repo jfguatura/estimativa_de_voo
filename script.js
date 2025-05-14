@@ -339,5 +339,11 @@ async function exportarPDF() {
   exportContainer.style.display = "none";
 }
 
+document.addEventListener('DOMContentLoaded', function () {
+  new TomSelect('#municipio-origem');
+  new TomSelect('#aeroporto-origem');
+  new TomSelect('#municipio-destino');
+  new TomSelect('#aeroporto-destino');
+});
 
 carregarDadosAeroportos();

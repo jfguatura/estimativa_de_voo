@@ -4,7 +4,7 @@ let marcadores = [];
 let linhaVoo;
 let dadosTrajeto = null;
 
-/ Atualize a função carregarDadosAeroportos para usar o feedback visual
+// Atualize a função carregarDadosAeroportos para usar o feedback visual
 async function carregarDadosAeroportos() {
   try {
     showLoading('Carregando dados de aeroportos...');

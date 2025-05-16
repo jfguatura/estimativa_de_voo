@@ -1,163 +1,304 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Estimativa de Tempo de Voo</title>
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Rotas Aéreas</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    
+    <!-- Leaflet MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            width: 350px;
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        
+        .slide-up {
+            animation: slideUp 0.5s forwards;
+        }
+        
+        @keyframes slideUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #ecf0f1;
+        }
+        
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #34495e;
+            background-color: #34495e;
+            color: white;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        #loading-spinner {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+        }
+        
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #data-atualizacao {
+            font-size: 12px;
+            color: #bdc3c7;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        /* Estilo para o container de exportação PDF */
+        #export-container {
+            display: none;
+            position: absolute;
+            z-index: -1000;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #export-left-panel {
+            width: 350px;
+            background-color: white;
+            color: black;
+            padding: 20px;
+        }
+        
+        #export-map {
+            flex: 1;
+            height: 100%;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <div class="left-panel">
-      <h1 class="slide-up"><i class="fas fa-plane"></i> Estimativa de Tempo de Voo</h1>
-      <h2 class="slide-up" style="animation-delay: 0.1s;"><i class="fas fa-database"></i> Fonte: Dados cadastrais de aeródromos públicos, ANAC</h2>
-      <p id="data-atualizacao" class="slide-up" style="animation-delay: 0.2s;"><i class="fas fa-calendar-alt"></i> Data de atualização: carregando...</p>
-
-      <div id="alert-message" class="alert" style="display: none;"></div>
-
-      <div class="form-group slide-up" style="animation-delay: 0.3s;">
-        <label for="aeronave"><i class="fas fa-fighter-jet"></i> Aeronave:</label>
-        <select id="aeronave">
-          <option value="" disabled selected>Selecione uma aeronave...</option>
-          <option value="vc1">VC-1 (Airbus A319)</option>
-          <option value="vc2">VC-2 (Embraer E-190)</option>
-          <option value="kc30">KC-30 (Airbus A330)</option>
-          <option value="custom">Personalizado</option>
-        </select>
-      </div>
-
-      <div id="custom-speed-input" class="form-group" style="display: none;">
-        <label for="velocidade-personalizada"><i class="fas fa-tachometer-alt"></i> Velocidade de cruzeiro (km/h):</label>
-        <input type="number" id="velocidade-personalizada" min="100" step="10" placeholder="Ex: 800">
-      </div>
-
-      <!-- País de Origem -->
-      <div class="form-group slide-up" style="animation-delay: 0.25s;">
-        <label for="pais-origem"><i class="fas fa-globe"></i> País de Origem:</label>
-        <select id="pais-origem">
-          <option value="" disabled selected>Selecione um país...</option>
-        </select>
-      </div>
-      
-      <!-- UF/Região de Origem -->
-      <div class="form-group slide-up" style="animation-delay: 0.27s;">
-        <label for="uf-origem"><i class="fas fa-map"></i> UF / Região de Origem:</label>
-        <select id="uf-origem">
-          <option value="" disabled selected>Selecione uma UF ou região...</option>
-        </select>
-      </div>
-      
-      <!-- Município de Origem -->
-      <div class="form-group slide-up" style="animation-delay: 0.29s;">
-        <label for="municipio-origem"><i class="fas fa-map-marker-alt"></i> Município de Origem:</label>
-        <select id="municipio-origem">
-          <option value="" disabled selected>Selecione um município...</option>
-        </select>
-      </div>
-      
-      <!-- Aeroporto de Origem -->
-      <div class="form-group slide-up" style="animation-delay: 0.31s;">
-        <label for="aeroporto-origem"><i class="fas fa-plane-departure"></i> Aeroporto de Origem:</label>
-        <select id="aeroporto-origem">
-          <option value="" disabled selected>Selecione um aeroporto...</option>
-        </select>
-      </div>
-
-
-      <!-- País de Destino -->
-      <div class="form-group slide-up" style="animation-delay: 0.33s;">
-        <label for="pais-destino"><i class="fas fa-globe"></i> País de Destino:</label>
-        <select id="pais-destino">
-          <option value="" disabled selected>Selecione um país...</option>
-        </select>
-      </div>
-      
-      <!-- UF/Região de Destino -->
-      <div class="form-group slide-up" style="animation-delay: 0.35s;">
-        <label for="uf-destino"><i class="fas fa-map"></i> UF / Região de Destino:</label>
-        <select id="uf-destino">
-          <option value="" disabled selected>Selecione uma UF ou região...</option>
-        </select>
-      </div>
-      
-      <!-- Município de Destino -->
-      <div class="form-group slide-up" style="animation-delay: 0.37s;">
-        <label for="municipio-destino"><i class="fas fa-map-marker-alt"></i> Município de Destino:</label>
-        <select id="municipio-destino">
-          <option value="" disabled selected>Selecione um município...</option>
-        </select>
-      </div>
-      
-      <!-- Aeroporto de Destino -->
-      <div class="form-group slide-up" style="animation-delay: 0.39s;">
-        <label for="aeroporto-destino"><i class="fas fa-plane-arrival"></i> Aeroporto de Destino:</label>
-        <select id="aeroporto-destino">
-          <option value="" disabled selected>Selecione um aeroporto...</option>
-        </select>
-      </div>
-
-      <button id="calcular" class="btn btn-primary slide-up" style="animation-delay: 0.8s;">
-        <i class="fas fa-calculator"></i> Calcular Trajeto
-      </button>
-      <button id="exportar-pdf" class="btn btn-secondary slide-up" style="animation-delay: 0.9s;">
-        <i class="fas fa-file-pdf"></i> Exportar Mapa em PDF
-      </button>
+    <div class="container">
+        <div class="sidebar">
+            <h2><i class="fas fa-route"></i> Calculadora de Rotas Aéreas</h2>
+            
+            <!-- Origem -->
+            <h3><i class="fas fa-plane-departure"></i> Origem</h3>
+            
+            <!-- País de Origem -->
+            <div class="form-group slide-up" style="animation-delay: 0.25s;">
+                <label for="pais-origem"><i class="fas fa-globe"></i> País de Origem:</label>
+                <select id="pais-origem">
+                    <option value="" disabled selected>Selecione um país...</option>
+                </select>
+            </div>
+            
+            <!-- UF/Região de Origem -->
+            <div class="form-group slide-up" style="animation-delay: 0.27s;" id="uf-origem-container">
+                <label for="uf-origem"><i class="fas fa-map"></i> UF / Região de Origem:</label>
+                <select id="uf-origem">
+                    <option value="" disabled selected>Selecione uma UF ou região...</option>
+                </select>
+            </div>
+            
+            <!-- Município de Origem -->
+            <div class="form-group slide-up" style="animation-delay: 0.29s;" id="municipio-origem-container">
+                <label for="municipio-origem"><i class="fas fa-map-marker-alt"></i> Município de Origem:</label>
+                <select id="municipio-origem">
+                    <option value="" disabled selected>Selecione um município...</option>
+                </select>
+            </div>
+            
+            <!-- Aeroporto de Origem -->
+            <div class="form-group slide-up" style="animation-delay: 0.31s;" id="aeroporto-origem-container">
+                <label for="aeroporto-origem"><i class="fas fa-plane-departure"></i> Aeroporto de Origem:</label>
+                <select id="aeroporto-origem">
+                    <option value="" disabled selected>Selecione um aeroporto...</option>
+                </select>
+            </div>
+            
+            <!-- Destino -->
+            <h3><i class="fas fa-plane-arrival"></i> Destino</h3>
+            
+            <!-- País de Destino -->
+            <div class="form-group slide-up" style="animation-delay: 0.33s;">
+                <label for="pais-destino"><i class="fas fa-globe"></i> País de Destino:</label>
+                <select id="pais-destino">
+                    <option value="" disabled selected>Selecione um país...</option>
+                </select>
+            </div>
+            
+            <!-- UF/Região de Destino -->
+            <div class="form-group slide-up" style="animation-delay: 0.35s;" id="uf-destino-container">
+                <label for="uf-destino"><i class="fas fa-map"></i> UF / Região de Destino:</label>
+                <select id="uf-destino">
+                    <option value="" disabled selected>Selecione uma UF ou região...</option>
+                </select>
+            </div>
+            
+            <!-- Município de Destino -->
+            <div class="form-group slide-up" style="animation-delay: 0.37s;" id="municipio-destino-container">
+                <label for="municipio-destino"><i class="fas fa-map-marker-alt"></i> Município de Destino:</label>
+                <select id="municipio-destino">
+                    <option value="" disabled selected>Selecione um município...</option>
+                </select>
+            </div>
+            
+            <!-- Aeroporto de Destino -->
+            <div class="form-group slide-up" style="animation-delay: 0.39s;" id="aeroporto-destino-container">
+                <label for="aeroporto-destino"><i class="fas fa-plane-arrival"></i> Aeroporto de Destino:</label>
+                <select id="aeroporto-destino">
+                    <option value="" disabled selected>Selecione um aeroporto...</option>
+                </select>
+            </div>
+            
+            <!-- Configurações de voo -->
+            <h3><i class="fas fa-cog"></i> Configurações</h3>
+            
+            <div class="form-group slide-up" style="animation-delay: 0.41s;">
+                <label for="aeronave"><i class="fas fa-plane"></i> Aeronave:</label>
+                <select id="aeronave">
+                    <option value="vc1">VC-1 (Airbus A319)</option>
+                    <option value="vc2" selected>VC-2 (Embraer E-190)</option>
+                    <option value="kc30">KC-30 (Airbus A330)</option>
+                    <option value="custom">Velocidade personalizada</option>
+                </select>
+            </div>
+            
+            <div class="form-group slide-up hidden" style="animation-delay: 0.43s;" id="custom-speed-input">
+                <label for="velocidade-personalizada"><i class="fas fa-tachometer-alt"></i> Velocidade (km/h):</label>
+                <input type="number" id="velocidade-personalizada" placeholder="Informe a velocidade em km/h">
+            </div>
+            
+            <button id="calcular" class="slide-up" style="animation-delay: 0.45s;">
+                <i class="fas fa-calculator"></i> Calcular Trajeto
+            </button>
+            
+            <button id="exportar-pdf" class="slide-up" style="animation-delay: 0.47s;">
+                <i class="fas fa-file-pdf"></i> Exportar PDF
+            </button>
+            
+            <div id="data-atualizacao" class="slide-up" style="animation-delay: 0.49s;">
+                Data de atualização: não disponível
+            </div>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
     </div>
-
-    <div class="right-panel">
-      <div id="map"></div>
+    
+    <!-- Container oculto para exportação PDF -->
+    <div id="export-container">
+        <div id="export-left-panel"></div>
+        <div id="export-map"></div>
     </div>
-  </div>
-
-  <!-- Spinner -->
-  <div id="loading-spinner">
-    <div></div>
-    <div id="loading-message">Carregando dados...</div>
-  </div>
-
-  <!-- Botão de alternar tema -->
-  <div class="theme-toggle" id="theme-toggle">
-    <i class="fas fa-moon"></i>
-  </div>
-
-  <!-- Scripts -->
-  <script>
-    // Tema dark/light
-    document.getElementById('theme-toggle').addEventListener('click', function() {
-      const body = document.body;
-      const currentTheme = body.getAttribute('data-theme');
-      const icon = this.querySelector('i');
-      
-      if (currentTheme === 'dark') {
-        body.removeAttribute('data-theme');
-        icon.classList.replace('fa-sun', 'fa-moon');
-      } else {
-        body.setAttribute('data-theme', 'dark');
-        icon.classList.replace('fa-moon', 'fa-sun');
-      }
-    });
-
-    // Função para mostrar mensagens
-    function showMessage(message, type = 'success') {
-      const alert = document.getElementById('alert-message');
-      alert.textContent = message;
-      alert.className = `alert alert-${type} fade-in`;
-      alert.style.display = 'block';
-      
-      setTimeout(() => {
-        alert.style.display = 'none';
-      }, 5000);
-    }
-  </script>
-  <!-- Scripts -->
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
-  <script src="script.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- Loading spinner -->
+    <div id="loading-spinner">
+        <div class="spinner"></div>
+        <div id="loading-message">Carregando...</div>
+    </div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    
+    <!-- Leaflet MarkerCluster JS -->
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    
+    <!-- html2canvas para exportar PDF -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    
+    <!-- jsPDF para gerar PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- Font Awesome -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/js/all.min.js"></script>
+    
+    <!-- Seu script principal -->
+    <script src="script.js"></script>
 </body>
 </html>

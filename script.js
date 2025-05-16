@@ -3,6 +3,7 @@ let aeroportos = [];
 let marcadores = [];
 let linhaVoo;
 let dadosTrajeto = null;
+let markerCluster;
 
 // Versão consolidada da função carregarDadosAeroportos
 async function carregarDadosAeroportos() {
@@ -14,7 +15,7 @@ async function carregarDadosAeroportos() {
     if (cache && cacheDate && (Date.now() - new Date(cacheDate).getTime() < 7 * 24 * 60 * 60 * 1000)) {
       aeroportos = JSON.parse(cache);
       inicializarMapa();
-      preencherMunicipios();
+      preencherPaises();
       return;
     }
 
@@ -39,7 +40,6 @@ async function carregarDadosAeroportos() {
     
     mostrarDataAtualizacao(new Date().toISOString());
     inicializarMapa();
-    preencherMunicipios();
     preencherPaises();
     
     showMessage('Dados carregados com sucesso!', 'success');
@@ -82,32 +82,6 @@ function parseCsv(csv) {
     
     return result;
   });
-}
-
-// Função filtrarAeroportos que estava faltando
-function filtrarAeroportos() {
-  const pais = document.getElementById("filtro-pais").value;
-  const tipo = document.getElementById("filtro-tipo").value;
-  
-  marcadores.forEach(m => mapa.removeLayer(m));
-  marcadores = [];
-  
-  const aeroportosFiltrados = aeroportos.filter(a => {
-    return (!pais || a.pais === pais) && 
-           (!tipo || a.tipo.includes(tipo));
-  });
-  
-  aeroportosFiltrados.forEach(aero => {
-    const marcador = L.marker([aero.latitude, aero.longitude])
-      .bindPopup(gerarPopup(aero))
-      .addTo(mapa);
-    marcadores.push(marcador);
-  });
-  
-  if (aeroportosFiltrados.length > 0) {
-    const grupo = new L.featureGroup(marcadores);
-    mapa.fitBounds(grupo.getBounds());
-  }
 }
 
 function processarAeroportosBrasileiros(dados) {
@@ -168,8 +142,6 @@ function mostrarDataAtualizacao(dataModificacao) {
   }
 }
 
-let markerCluster;
-
 function inicializarMapa() {
   mapa = L.map('map').setView([-15.78, -47.93], 4);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -209,7 +181,7 @@ function exibirTodosOsAeroportos() {
   }
 }
 
-// Funções de UI melhoradas
+// Funções de UI
 function showLoading(message = 'Carregando...') {
   const spinner = document.getElementById('loading-spinner');
   const messageEl = document.getElementById('loading-message');
@@ -222,11 +194,21 @@ function hideLoading() {
   spinner.style.display = 'none';
 }
 
+function showMessage(message, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `message ${type}`;
+  el.textContent = message;
+  document.body.appendChild(el);
+  
+  setTimeout(() => {
+    el.remove();
+  }, 3000);
+}
+
 function showError(message) {
   showMessage(message, 'error');
   console.error(message);
 }
-
 
 function gerarPopup(aero) {
   let conteudo = `<strong>${aero.nome}</strong><br>`;
@@ -275,8 +257,12 @@ function preencherPaises() {
 function preencherUFsOuRegioes(tipo) {
   const pais = document.getElementById(`pais-${tipo}`).value;
   const selectUF = document.getElementById(`uf-${tipo}`);
+  const ufContainer = document.getElementById(`uf-${tipo}-container`);
   
-  if (!pais) return;
+  if (!pais) {
+    ufContainer.classList.add('hidden');
+    return;
+  }
   
   // Filtra aeroportos pelo país selecionado
   const aeroportosPais = aeroportos.filter(a => a.pais === pais);
@@ -286,9 +272,13 @@ function preencherUFsOuRegioes(tipo) {
   
   // Se não houver UFs/regiões (países pequenos), pula para municípios
   if (ufsRegioes.length === 0) {
-    selectUF.innerHTML = '<option value="" disabled selected>Não há divisões regionais</option>';
+    ufContainer.classList.add('hidden');
+    // Mostra o container de municípios diretamente
+    document.getElementById(`municipio-${tipo}-container`).classList.remove('hidden');
     preencherMunicipios(tipo);
     return;
+  } else {
+    ufContainer.classList.remove('hidden');
   }
   
   // Preenche o select
@@ -311,8 +301,14 @@ function preencherMunicipios(tipo) {
   const pais = document.getElementById(`pais-${tipo}`).value;
   const uf = document.getElementById(`uf-${tipo}`).value;
   const selectMunicipio = document.getElementById(`municipio-${tipo}`);
+  const municipioContainer = document.getElementById(`municipio-${tipo}-container`);
   
-  if (!pais) return;
+  if (!pais) {
+    municipioContainer.classList.add('hidden');
+    return;
+  }
+  
+  municipioContainer.classList.remove('hidden');
   
   // Filtra aeroportos
   let aeroportosFiltrados = aeroportos.filter(a => a.pais === pais);
@@ -345,8 +341,14 @@ function preencherAeroportos(tipo) {
   const uf = document.getElementById(`uf-${tipo}`).value;
   const municipio = document.getElementById(`municipio-${tipo}`).value;
   const selectAeroporto = document.getElementById(`aeroporto-${tipo}`);
+  const aeroportoContainer = document.getElementById(`aeroporto-${tipo}-container`);
   
-  if (!pais || !municipio) return;
+  if (!pais || !municipio) {
+    aeroportoContainer.classList.add('hidden');
+    return;
+  }
+  
+  aeroportoContainer.classList.remove('hidden');
   
   // Filtra aeroportos
   let aeroportosFiltrados = aeroportos.filter(a => a.pais === pais && 
@@ -364,30 +366,6 @@ function preencherAeroportos(tipo) {
     const nome = aero.nome;
     selectAeroporto.add(new Option(`${nome} (${codigo})`, codigo));
   });
-}
-
-function filtrarAeroportosPorLocalidade(tipo) {
-  const localidade = document.getElementById(`municipio-${tipo}`).value;
-  const selectAeroporto = document.getElementById(`aeroporto-${tipo}`);
-  selectAeroporto.innerHTML = '<option value="">Selecione um aeroporto</option>';
-
-  if (!localidade) return;
-
-  aeroportos
-    .filter(a => {
-      if (a.pais === 'Brasil') {
-        return `${a.municipio} (${a.uf})` === localidade;
-      } else {
-        return `${a.municipio || a.nome.split(' ')[0]} - ${a.pais}` === localidade;
-      }
-    })
-    .forEach(aero => {
-      const label = aero.pais === 'Brasil' 
-        ? `${aero.nome} - ${aero.municipio}/${aero.uf} (${aero.codigo_oaci || aero.codigo_iata})`
-        : `${aero.nome} - ${aero.pais} (${aero.codigo_iata || aero.codigo_oaci})`;
-      
-      selectAeroporto.add(new Option(label, aero.codigo_oaci || aero.codigo_iata));
-    });
 }
 
 function calcularDistancia(lat1, lon1, lat2, lon2) {
@@ -445,13 +423,13 @@ document.addEventListener('DOMContentLoaded', function () {
   
   // Adiciona o listener ao botão "Calcular Trajeto"
   document.getElementById('calcular').addEventListener('click', function () {
-    console.log('Botão clicado');
     calcularTrajeto();
   });
   
-  // para o botão funcionar ao clicar, é necessário que você adicione um event listener a ele
+  // Listener para o botão de exportar PDF
   document.getElementById("exportar-pdf").addEventListener("click", exportarPDF);
-  
+});
+
 function calcularTrajeto() {
   try {
     showLoading('Calculando trajeto...');
@@ -543,25 +521,6 @@ function calcularTrajeto() {
     hideLoading();
   }
 }
-
-  // Adicione animação ao exibir resultados
-  function exibirResultadoTrajeto(dados) {
-    const popupContent = `
-      <div class="fade-in">
-        <strong>${dados.aeronave}</strong><br>
-        <strong>Distância:</strong> ${dados.distancia.toLocaleString('pt-BR')} km<br>
-        <strong>Tempo estimado:</strong> ${dados.tempoHoras}h ${dados.tempoMinutos}min
-      </div>
-    `;
-    
-    linhaVoo.bindPopup(popupContent).openPopup();
-  }
-  
-  // Função para obter informações do aeroporto por código
- function obterAeroportoPorCodigo(codigo) {
-  return aeroportos.find(aeroporto => aeroporto.codigo_oaci === codigo);
-  }
-});
 
 async function exportarPDF() {
   if (!dadosTrajeto) {

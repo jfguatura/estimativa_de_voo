@@ -40,6 +40,7 @@ async function carregarDadosAeroportos() {
     mostrarDataAtualizacao(new Date().toISOString());
     inicializarMapa();
     preencherMunicipios();
+    preencherPaises();
     
     showMessage('Dados carregados com sucesso!', 'success');
   } catch (error) {
@@ -238,42 +239,131 @@ function gerarPopup(aero) {
   return conteudo;
 }
 
-function preencherMunicipios() {
-  // Agrupa municípios brasileiros e cidades internacionais
-  const localidades = [...new Set(aeroportos.map(a => {
-    if (a.pais === 'Brasil') {
-      return `${a.municipio} (${a.uf})`;
-    } else {
-      return `${a.municipio || a.nome.split(' ')[0]} - ${a.pais}`;
-    }
-  }))].sort((a, b) => a.localeCompare(b));
-
-  const selectOrigem = document.getElementById("municipio-origem");
-  const selectDestino = document.getElementById("municipio-destino");
-
-  // Limpa os selects antes de preencher
-  selectOrigem.innerHTML = '<option value="">Selecione uma localidade</option>';
-  selectDestino.innerHTML = '<option value="">Selecione uma localidade</option>';
-
-  localidades.forEach(local => {
-    selectOrigem.add(new Option(local, local));
-    selectDestino.add(new Option(local, local));
-  });
-
-  selectOrigem.addEventListener("change", () => filtrarAeroportosPorLocalidade("origem"));
-  selectDestino.addEventListener("change", () => filtrarAeroportosPorLocalidade("destino"));
-}
-
+// Função para preencher os países nos selects de origem e destino
 function preencherPaises() {
   const paises = [...new Set(aeroportos.map(a => a.pais))].sort();
-  const selectPais = document.getElementById("filtro-pais");
+  const selectPaisOrigem = document.getElementById("pais-origem");
+  const selectPaisDestino = document.getElementById("pais-destino");
   
-  selectPais.innerHTML = '<option value="">Todos os países</option>';
-  paises.forEach(pais => {
-    selectPais.add(new Option(pais, pais));
+  // Limpa e preenche os selects
+  [selectPaisOrigem, selectPaisDestino].forEach(select => {
+    select.innerHTML = '<option value="" disabled selected>Selecione um país...</option>';
+    paises.forEach(pais => {
+      select.add(new Option(pais, pais));
+    });
   });
   
-  selectPais.addEventListener("change", filtrarAeroportos);
+  // Adiciona os event listeners
+  selectPaisOrigem.addEventListener("change", () => {
+    preencherUFsOuRegioes("origem");
+    // Limpa os selects dependentes
+    document.getElementById("uf-origem").innerHTML = '<option value="" disabled selected>Selecione uma UF ou região...</option>';
+    document.getElementById("municipio-origem").innerHTML = '<option value="" disabled selected>Selecione um município...</option>';
+    document.getElementById("aeroporto-origem").innerHTML = '<option value="" disabled selected>Selecione um aeroporto...</option>';
+  });
+  
+  selectPaisDestino.addEventListener("change", () => {
+    preencherUFsOuRegioes("destino");
+    // Limpa os selects dependentes
+    document.getElementById("uf-destino").innerHTML = '<option value="" disabled selected>Selecione uma UF ou região...</option>';
+    document.getElementById("municipio-destino").innerHTML = '<option value="" disabled selected>Selecione um município...</option>';
+    document.getElementById("aeroporto-destino").innerHTML = '<option value="" disabled selected>Selecione um aeroporto...</option>';
+  });
+}
+
+// Função para preencher UFs ou regiões baseado no país selecionado
+function preencherUFsOuRegioes(tipo) {
+  const pais = document.getElementById(`pais-${tipo}`).value;
+  const selectUF = document.getElementById(`uf-${tipo}`);
+  
+  if (!pais) return;
+  
+  // Filtra aeroportos pelo país selecionado
+  const aeroportosPais = aeroportos.filter(a => a.pais === pais);
+  
+  // Obtém UFs/regiões únicas
+  let ufsRegioes = [...new Set(aeroportosPais.map(a => a.uf || a.region))].filter(Boolean).sort();
+  
+  // Se não houver UFs/regiões (países pequenos), pula para municípios
+  if (ufsRegioes.length === 0) {
+    selectUF.innerHTML = '<option value="" disabled selected>Não há divisões regionais</option>';
+    preencherMunicipios(tipo);
+    return;
+  }
+  
+  // Preenche o select
+  selectUF.innerHTML = '<option value="" disabled selected>Selecione uma UF ou região...</option>';
+  ufsRegioes.forEach(uf => {
+    selectUF.add(new Option(uf, uf));
+  });
+  
+  // Adiciona event listener
+  selectUF.addEventListener("change", () => {
+    preencherMunicipios(tipo);
+    // Limpa os selects dependentes
+    document.getElementById(`municipio-${tipo}`).innerHTML = '<option value="" disabled selected>Selecione um município...</option>';
+    document.getElementById(`aeroporto-${tipo}`).innerHTML = '<option value="" disabled selected>Selecione um aeroporto...</option>';
+  });
+}
+
+// Função para preencher municípios baseado na UF/região selecionada
+function preencherMunicipios(tipo) {
+  const pais = document.getElementById(`pais-${tipo}`).value;
+  const uf = document.getElementById(`uf-${tipo}`).value;
+  const selectMunicipio = document.getElementById(`municipio-${tipo}`);
+  
+  if (!pais) return;
+  
+  // Filtra aeroportos
+  let aeroportosFiltrados = aeroportos.filter(a => a.pais === pais);
+  
+  // Se houver UF/região selecionada, filtra por ela
+  if (uf && uf !== "N/A") {
+    aeroportosFiltrados = aeroportosFiltrados.filter(a => a.uf === uf || a.region === uf);
+  }
+  
+  // Obtém municípios únicos
+  const municipios = [...new Set(aeroportosFiltrados.map(a => a.municipio || a.municipality || a.nome.split(' ')[0]))].filter(Boolean).sort();
+  
+  // Preenche o select
+  selectMunicipio.innerHTML = '<option value="" disabled selected>Selecione um município...</option>';
+  municipios.forEach(municipio => {
+    selectMunicipio.add(new Option(municipio, municipio));
+  });
+  
+  // Adiciona event listener
+  selectMunicipio.addEventListener("change", () => {
+    preencherAeroportos(tipo);
+    // Limpa o select de aeroportos
+    document.getElementById(`aeroporto-${tipo}`).innerHTML = '<option value="" disabled selected>Selecione um aeroporto...</option>';
+  });
+}
+
+// Função para preencher aeroportos baseado no município selecionado
+function preencherAeroportos(tipo) {
+  const pais = document.getElementById(`pais-${tipo}`).value;
+  const uf = document.getElementById(`uf-${tipo}`).value;
+  const municipio = document.getElementById(`municipio-${tipo}`).value;
+  const selectAeroporto = document.getElementById(`aeroporto-${tipo}`);
+  
+  if (!pais || !municipio) return;
+  
+  // Filtra aeroportos
+  let aeroportosFiltrados = aeroportos.filter(a => a.pais === pais && 
+    (a.municipio === municipio || a.municipality === municipio || a.nome.split(' ')[0] === municipio));
+  
+  // Se houver UF/região selecionada, filtra por ela
+  if (uf && uf !== "N/A") {
+    aeroportosFiltrados = aeroportosFiltrados.filter(a => a.uf === uf || a.region === uf);
+  }
+  
+  // Preenche o select
+  selectAeroporto.innerHTML = '<option value="" disabled selected>Selecione um aeroporto...</option>';
+  aeroportosFiltrados.forEach(aero => {
+    const codigo = aero.codigo_oaci || aero.codigo_iata || aero.ident;
+    const nome = aero.nome;
+    selectAeroporto.add(new Option(`${nome} (${codigo})`, codigo));
+  });
 }
 
 function filtrarAeroportosPorLocalidade(tipo) {

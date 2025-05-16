@@ -4,21 +4,115 @@ let marcadores = [];
 let linhaVoo;
 let dadosTrajeto = null;
 
-// Atualize a função carregarDadosAeroportos para usar o feedback visual
+// Versão consolidada da função carregarDadosAeroportos
 async function carregarDadosAeroportos() {
   try {
-    showLoading('Carregando dados de aeroportos...');
-    const response = await fetch("AerodromosPublicos.json");
+    // Verificar cache primeiro
+    const cache = localStorage.getItem('aeroportosCache');
+    const cacheDate = localStorage.getItem('aeroportosCacheDate');
     
-    if (!response.ok) {
-      throw new Error('Falha ao carregar dados dos aeroportos');
+    if (cache && cacheDate && (Date.now() - new Date(cacheDate).getTime() < 7 * 24 * 60 * 60 * 1000)) {
+      aeroportos = JSON.parse(cache);
+      inicializarMapa();
+      preencherMunicipios();
+      return;
+    }
+
+    showLoading('Carregando dados de aeroportos...');
+    
+    // Carregar dados brasileiros e internacionais em paralelo
+    const [dadosBr, dadosInt] = await Promise.all([
+      fetch("AerodromosPublicos.json").then(r => r.ok ? r.json() : Promise.reject('Falha ao carregar dados brasileiros')),
+      fetch("https://raw.githubusercontent.com/davidmegginson/ourairports-data/main/airports.csv")
+        .then(r => r.ok ? r.text() : Promise.reject('Falha ao carregar dados internacionais'))
+    ]);
+    
+    // Processar e combinar dados
+    aeroportos = [
+      ...processarAeroportosBrasileiros(dadosBr),
+      ...processarAeroportosInternacionais(parseCsv(dadosInt))
+    ].filter(a => !isNaN(a.latitude) && !isNaN(a.longitude));
+    
+    // Salvar no cache
+    localStorage.setItem('aeroportosCache', JSON.stringify(aeroportos));
+    localStorage.setItem('aeroportosCacheDate', new Date().toISOString());
+    
+    mostrarDataAtualizacao(new Date().toISOString());
+    inicializarMapa();
+    preencherMunicipios();
+    
+    showMessage('Dados carregados com sucesso!', 'success');
+  } catch (error) {
+    showError(error.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+// Parser CSV mais robusto
+function parseCsv(csv) {
+  const lines = csv.split('\n');
+  const headers = lines[0].split(',').map(h => h.trim());
+  
+  return lines.slice(1).map(line => {
+    const result = {};
+    let current = '';
+    let insideQuotes = false;
+    let headerIndex = 0;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        insideQuotes = !insideQuotes;
+      } else if (char === ',' && !insideQuotes) {
+        result[headers[headerIndex]] = current.trim();
+        current = '';
+        headerIndex++;
+      } else {
+        current += char;
+      }
     }
     
-    const dados = await response.json();
-    const dataModificacao = response.headers.get("Last-Modified");
+    // Adicionar o último campo
+    if (current.trim() !== '' || headerIndex < headers.length) {
+      result[headers[headerIndex]] = current.trim();
+    }
+    
+    return result;
+  });
+}
 
-    aeroportos = dados.map(a => ({
+// Função filtrarAeroportos que estava faltando
+function filtrarAeroportos() {
+  const pais = document.getElementById("filtro-pais").value;
+  const tipo = document.getElementById("filtro-tipo").value;
+  
+  marcadores.forEach(m => mapa.removeLayer(m));
+  marcadores = [];
+  
+  const aeroportosFiltrados = aeroportos.filter(a => {
+    return (!pais || a.pais === pais) && 
+           (!tipo || a.tipo.includes(tipo));
+  });
+  
+  aeroportosFiltrados.forEach(aero => {
+    const marcador = L.marker([aero.latitude, aero.longitude])
+      .bindPopup(gerarPopup(aero))
+      .addTo(mapa);
+    marcadores.push(marcador);
+  });
+  
+  if (aeroportosFiltrados.length > 0) {
+    const grupo = new L.featureGroup(marcadores);
+    mapa.fitBounds(grupo.getBounds());
+  }
+}
+
+function processarAeroportosBrasileiros(dados) {
+  return dados.map(a => ({
     codigo_oaci: a["CódigoOACI"],
+    codigo_iata: a["CódigoIATA"] || '',
     ciad: a["CIAD"],
     nome: a["Nome"],
     municipio: a["Município"],
@@ -30,34 +124,34 @@ async function carregarDadosAeroportos() {
     latitude_gms: a["Latitude"],
     longitude_gms: a["Longitude"],
     altitude: a["Altitude"],
-    operacao_diurna: a["OperaçãoDiurna"],
-    operacao_noturna: a["OperaçãoNoturna"],
-    designacao1: a["Designação1"],
-    comprimento1: a["Comprimento1"],
-    largura1: a["Largura1"],
-    resistencia1: a["Resistência1"],
-    superficie1: a["Superfície1"],
-    designacao2: a["Designação2"],
-    comprimento2: a["Comprimento2"],
-    largura2: a["Largura2"],
-    resistencia2: a["Resistência2"],
-    superficie2: a["Superfície2"],
-    situacao: a["SITUAÇÃO"],
-    validade_registro: a["ValidadedoRegistro"],
-    portaria_registro: a["PortariadeRegistro"],
-    link_portaria: a["LinkPortaria"]
-  })).filter(a => !isNaN(a.latitude) && !isNaN(a.longitude));
+    pais: 'Brasil',
+    tipo: 'public',
+    continente: 'América do Sul'
+  }));
+}
 
-  mostrarDataAtualizacao(dataModificacao);
-  inicializarMapa();
-  preencherMunicipios();
-  
-  showMessage('Dados carregados com sucesso!', 'success');
-  } catch (error) {
-    showError(error.message);
-  } finally {
-    hideLoading();
-  }
+function processarAeroportosInternacionais(dados) {
+  return dados.filter(a => a.type === 'medium_airport' || a.type === 'large_airport')
+    .map(a => ({
+      codigo_oaci: a.ident || '',
+      codigo_iata: a.iata_code || '',
+      nome: a.name,
+      municipio: a.municipality || '',
+      uf: a.region || '',
+      latitude: parseFloat(a.latitude_deg),
+      longitude: parseFloat(a.longitude_deg),
+      altitude: a.elevation_ft ? `${Math.round(a.elevation_ft * 0.3048)}m` : '',
+      pais: a.iso_country === 'BR' ? 'Brasil' : a.iso_country,
+      tipo: a.type,
+      continente: a.continent
+    }));
+}
+
+function obterAeroportoPorCodigo(codigo) {
+  return aeroportos.find(a => 
+    a.codigo_oaci === codigo || 
+    a.codigo_iata === codigo
+  );
 }
 
 function mostrarDataAtualizacao(dataModificacao) {
@@ -73,26 +167,45 @@ function mostrarDataAtualizacao(dataModificacao) {
   }
 }
 
+let markerCluster;
+
 function inicializarMapa() {
   mapa = L.map('map').setView([-15.78, -47.93], 4);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(mapa);
 
+  // Inicializa o cluster de marcadores
+  markerCluster = L.markerClusterGroup({
+    spiderfyOnMaxZoom: true,
+    showCoverageOnHover: false,
+    zoomToBoundsOnClick: true,
+    maxClusterRadius: 80
+  });
+  mapa.addLayer(markerCluster);
+
   exibirTodosOsAeroportos();
 }
 
 function exibirTodosOsAeroportos() {
-  marcadores.forEach(m => mapa.removeLayer(m));
+  // Limpa os marcadores existentes
+  markerCluster.clearLayers();
   marcadores = [];
 
+  // Adiciona todos os aeroportos ao cluster
   aeroportos.forEach(aero => {
     const popupContent = gerarPopup(aero);
     const marcador = L.marker([aero.latitude, aero.longitude])
-      .bindPopup(popupContent)
-      .addTo(mapa);
+      .bindPopup(popupContent);
+    
     marcadores.push(marcador);
+    markerCluster.addLayer(marcador);
   });
+
+  // Ajusta a visualização para mostrar todos os marcadores
+  if (marcadores.length > 0) {
+    mapa.fitBounds(markerCluster.getBounds());
+  }
 }
 
 // Funções de UI melhoradas
@@ -126,30 +239,64 @@ function gerarPopup(aero) {
 }
 
 function preencherMunicipios() {
-  const municipios = [...new Set(aeroportos.map(a => a.municipio))].sort();
+  // Agrupa municípios brasileiros e cidades internacionais
+  const localidades = [...new Set(aeroportos.map(a => {
+    if (a.pais === 'Brasil') {
+      return `${a.municipio} (${a.uf})`;
+    } else {
+      return `${a.municipio || a.nome.split(' ')[0]} - ${a.pais}`;
+    }
+  }))].sort((a, b) => a.localeCompare(b));
 
   const selectOrigem = document.getElementById("municipio-origem");
   const selectDestino = document.getElementById("municipio-destino");
 
-  municipios.forEach(m => {
-    selectOrigem.add(new Option(m, m));
-    selectDestino.add(new Option(m, m));
+  // Limpa os selects antes de preencher
+  selectOrigem.innerHTML = '<option value="">Selecione uma localidade</option>';
+  selectDestino.innerHTML = '<option value="">Selecione uma localidade</option>';
+
+  localidades.forEach(local => {
+    selectOrigem.add(new Option(local, local));
+    selectDestino.add(new Option(local, local));
   });
 
-  selectOrigem.addEventListener("change", () => filtrarAeroportosPorMunicipio("origem"));
-  selectDestino.addEventListener("change", () => filtrarAeroportosPorMunicipio("destino"));
+  selectOrigem.addEventListener("change", () => filtrarAeroportosPorLocalidade("origem"));
+  selectDestino.addEventListener("change", () => filtrarAeroportosPorLocalidade("destino"));
 }
 
-function filtrarAeroportosPorMunicipio(tipo) {
-  const municipio = document.getElementById(`municipio-${tipo}`).value;
+function preencherPaises() {
+  const paises = [...new Set(aeroportos.map(a => a.pais))].sort();
+  const selectPais = document.getElementById("filtro-pais");
+  
+  selectPais.innerHTML = '<option value="">Todos os países</option>';
+  paises.forEach(pais => {
+    selectPais.add(new Option(pais, pais));
+  });
+  
+  selectPais.addEventListener("change", filtrarAeroportos);
+}
+
+function filtrarAeroportosPorLocalidade(tipo) {
+  const localidade = document.getElementById(`municipio-${tipo}`).value;
   const selectAeroporto = document.getElementById(`aeroporto-${tipo}`);
-  selectAeroporto.innerHTML = "";
+  selectAeroporto.innerHTML = '<option value="">Selecione um aeroporto</option>';
+
+  if (!localidade) return;
 
   aeroportos
-    .filter(a => a.municipio === municipio)
+    .filter(a => {
+      if (a.pais === 'Brasil') {
+        return `${a.municipio} (${a.uf})` === localidade;
+      } else {
+        return `${a.municipio || a.nome.split(' ')[0]} - ${a.pais}` === localidade;
+      }
+    })
     .forEach(aero => {
-      const label = `${aero.nome} - ${aero.municipio}/${aero.uf} (${aero.codigo_oaci})`;
-      selectAeroporto.add(new Option(label, aero.codigo_oaci));
+      const label = aero.pais === 'Brasil' 
+        ? `${aero.nome} - ${aero.municipio}/${aero.uf} (${aero.codigo_oaci || aero.codigo_iata})`
+        : `${aero.nome} - ${aero.pais} (${aero.codigo_iata || aero.codigo_oaci})`;
+      
+      selectAeroporto.add(new Option(label, aero.codigo_oaci || aero.codigo_iata));
     });
 }
 

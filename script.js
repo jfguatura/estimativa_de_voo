@@ -64,20 +64,43 @@ function inicializarMapa() {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(mapa);
 
-  exibirTodosOsAeroportos();
+  // Inicializa o cluster de marcadores
+  const markerCluster = L.markerClusterGroup();
+  mapa.addLayer(markerCluster);
+
+  exibirTodosOsAeroportos(markerCluster); // Passe o markerCluster como parâmetro
 }
 
-function exibirTodosOsAeroportos() {
-  marcadores.forEach(m => mapa.removeLayer(m));
+function exibirTodosOsAeroportos(markerCluster) {
+  // Limpa os marcadores existentes
+  if (markerCluster) {
+    markerCluster.clearLayers();
+  } else {
+    marcadores.forEach(m => mapa.removeLayer(m));
+  }
   marcadores = [];
 
+  // Adiciona todos os aeroportos ao cluster ou diretamente ao mapa
   aeroportos.forEach(aero => {
     const popupContent = gerarPopup(aero);
     const marcador = L.marker([aero.latitude, aero.longitude])
-      .bindPopup(popupContent)
-      .addTo(mapa);
+      .bindPopup(popupContent);
+    
+    if (markerCluster) {
+      markerCluster.addLayer(marcador);
+    } else {
+      marcador.addTo(mapa);
+    }
     marcadores.push(marcador);
   });
+
+  // Ajusta a visualização para mostrar todos os marcadores
+  if (markerCluster && marcadores.length > 0) {
+    mapa.fitBounds(markerCluster.getBounds());
+  } else if (marcadores.length > 0) {
+    const grupo = new L.featureGroup(marcadores);
+    mapa.fitBounds(grupo.getBounds());
+  }
 }
 
 function gerarPopup(aero) {

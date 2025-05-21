@@ -8,7 +8,7 @@ let dadosTrajeto = null;
 async function carregarDadosAeroportos() {
   try {
     showLoading('Carregando dados de aeroportos...');
-    const response = await fetch("AerodromosPublicos.json");
+    const response = await fetch("aeroportos_mundo.json");
     
     if (!response.ok) {
       throw new Error('Falha ao carregar dados dos aeroportos');

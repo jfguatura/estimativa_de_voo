@@ -17,36 +17,42 @@ async function carregarDadosAeroportos() {
     const dados = await response.json();
     const dataModificacao = response.headers.get("Last-Modified");
 
-    aeroportos = dados.map(a => ({
-    codigo_oaci: a["CódigoOACI"],
-    ciad: a["CIAD"],
-    nome: a["Nome"],
-    municipio: a["Município"],
-    uf: a["UF"],
-    municipio_servido: a["MunicípioServido"],
-    uf_servido: a["UFSERVIDO"],
-    latitude: parseFloat(a["LatGeoPoint"]),
-    longitude: parseFloat(a["LonGeoPoint"]),
-    latitude_gms: a["Latitude"],
-    longitude_gms: a["Longitude"],
-    altitude: a["Altitude"],
-    operacao_diurna: a["OperaçãoDiurna"],
-    operacao_noturna: a["OperaçãoNoturna"],
-    designacao1: a["Designação1"],
-    comprimento1: a["Comprimento1"],
-    largura1: a["Largura1"],
-    resistencia1: a["Resistência1"],
-    superficie1: a["Superfície1"],
-    designacao2: a["Designação2"],
-    comprimento2: a["Comprimento2"],
-    largura2: a["Largura2"],
-    resistencia2: a["Resistência2"],
-    superficie2: a["Superfície2"],
-    situacao: a["SITUAÇÃO"],
-    validade_registro: a["ValidadedoRegistro"],
-    portaria_registro: a["PortariadeRegistro"],
-    link_portaria: a["LinkPortaria"]
-  })).filter(a => !isNaN(a.latitude) && !isNaN(a.longitude));
+    const aeroportos = dados.map(a => ({
+        codigo_oaci: a.icao || "",                   // Código ICAO
+        codigo_iata: a.iata || "",                   // Código IATA
+        nome: a.name || "",                          // Nome do aeroporto
+        municipio: a.city || "",                      // Cidade
+        uf: a.subd || "",                             // Estado (quando tiver)
+        pais: a.country || "",                        // País
+        latitude: parseFloat(a.lat) || 0,
+        longitude: parseFloat(a.lon) || 0,
+        altitude: a.elevation || 0,                   // Em pés na base
+        tz: a.tz || "",                               // Timezone
+    
+        // Campos que não existem, mas você pode deixar nulo ou vazio
+        municipio_servido: "",
+        uf_servido: "",
+        latitude_gms: "",
+        longitude_gms: "",
+        operacao_diurna: "",
+        operacao_noturna: "",
+        designacao1: "",
+        comprimento1: "",
+        largura1: "",
+        resistencia1: "",
+        superficie1: "",
+        designacao2: "",
+        comprimento2: "",
+        largura2: "",
+        resistencia2: "",
+        superficie2: "",
+        situacao: "",
+        validade_registro: "",
+        portaria_registro: "",
+        link_portaria: ""
+    }))
+    .filter(a => !isNaN(a.latitude) && !isNaN(a.longitude));
+
 
   mostrarDataAtualizacao(dataModificacao);
   inicializarMapa();

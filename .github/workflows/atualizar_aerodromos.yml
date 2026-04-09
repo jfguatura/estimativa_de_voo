@@ -8,6 +8,8 @@ on:
 jobs:
   atualizar-json:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Clonar o repositório
@@ -25,5 +27,5 @@ jobs:
             echo "Nenhuma atualização encontrada."
           else
             git commit -m "Atualização mensal do AerodromosPublicos.json via GitHub Actions"
-            git push
+            git push origin HEAD:${{ github.ref }}
           fi
